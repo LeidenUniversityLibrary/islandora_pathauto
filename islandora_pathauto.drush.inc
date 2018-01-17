@@ -14,7 +14,7 @@ function islandora_pathauto_drush_command() {
     'description' => 'Update aliases of islandora objects.',
     'options' => array(
       'dryrun' => 'See what aliases are to be completed.',
-      'fromdate' => 'The creation date of objects to start with.'
+      'fromdate' => 'The creation date of objects to start with. Use valid date (e.g. 2018-01-17 or 2018-01-17T13:30:00.000Z) or the value "last" to start from the last date the aliasses where created.'
     ),
   );
 
@@ -27,8 +27,10 @@ function islandora_pathauto_drush_command() {
 function drush_islandora_pathauto_islandora_aliases_complete_validate() {
   $fromdate = drush_get_option('fromdate');
   if (isset($fromdate)) {
-    if (!preg_match('/^[12][0-9]{3}-[01][0-9]-[0-3][0-9](?:T[0-2][0-9]:[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z)?$/', $fromdate)) {
-      return drush_set_error(t("Argument 'fromdate' is not valid, should have format YYYY-MM-DD or YYYY-MM-DDThh-mm-ss.qqqZ"));
+    if ($fromdate !== 'last') {
+      if (!preg_match('/^[12][0-9]{3}-[01][0-9]-[0-3][0-9](?:T[0-2][0-9]:[0-5][0-9]:[0-5][0-9]\\.[0-9]{3}Z)?$/', $fromdate)) {
+        return drush_set_error(t("Argument 'fromdate' is not valid, should have format YYYY-MM-DD or YYYY-MM-DDThh-mm-ss.qqqZ"));
+      }
     }
   }
 }
@@ -39,6 +41,9 @@ function drush_islandora_pathauto_islandora_aliases_complete_validate() {
 function drush_islandora_pathauto_islandora_aliases_complete() {
   $isdryrun = drush_get_option('dryrun');
   $fromdate = drush_get_option('fromdate');
+  if ($fromdate === 'last') {
+    $fromdate = variable_get('islandora_pathauto_aliases_complete_last_date', '1900-01-01');
+  }
   $settings = islandora_pathauto_pathauto('settings');
   $pattern_all_objects = variable_get('pathauto_' . $settings->module . '_pattern', $settings->patterndefault);
   // Determine what content models have a pattern and
@@ -147,6 +152,9 @@ EOQ;
       '@first' => $firstcreationdate,
       '@last' => $lastcreationdate,
     )), "success");
+    if (!$isdryrun) {
+      variable_set('islandora_pathauto_aliases_complete_last_date', $lastcreationdate);
+    }
   }
 }
 

@@ -84,6 +84,7 @@ ORDER BY ?cd
 !limit
 EOQ;
 
+  drupal_static_reset('islandora_get_tuque_connection');
   $tuque = islandora_get_tuque_connection();
   if ($tuque) {
     $firstcreationdate;
@@ -94,8 +95,10 @@ EOQ;
     $limit = 2500;
     $checked = 0;
     $added = 0;
+    $cycles = 0;
 
     while (TRUE) {
+      $cycles++;
       if (isset($lastcreationdate)) {
         $filters['cd'] = "FILTER(?cd > '{$lastcreationdate}'^^xsd:dateTime)";
       }
@@ -143,6 +146,10 @@ EOQ;
             }
           }
         }
+      }
+      if (($cycles % 50) === 0) {
+        drupal_static_reset('islandora_get_tuque_connection');
+        $tuque = islandora_get_tuque_connection();
       }
     }
     drush_log(t("Checked !checked objects between @first and @last, !verb !added aliases.", array(

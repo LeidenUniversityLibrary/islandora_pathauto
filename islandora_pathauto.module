@@ -164,12 +164,6 @@ function islandora_pathauto_islandora_object_purged($pid) {
 function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context = array()) {
   module_load_include('inc', 'islandora', 'includes/utilities');
   $sandbox = &$context['sandbox'];
-  $args = array(
-    '!filters' => '',
-    '!limit' => '',
-    '!md_name' => '',
-    '!md_field' => '',
-  );
   if (empty($sandbox)) {
     $sandbox['total'] = 0;
     $sandbox['total_alias'] = 0;
@@ -213,6 +207,12 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
 
 function islandora_pathauto_bulk_batch_process_sparql($use_cron_last = FALSE, &$context = array()) {
   $sandbox = &$context['sandbox'];
+  $args = array(
+    '!filters' => '',
+    '!limit' => '',
+    '!md_name' => '',
+    '!md_field' => '',
+  );
   if (empty($sandbox) || $sandbox['total_processed'] === 0) {
     $model_filters = $sandbox['models'];
     foreach ($model_filters as &$filter) {

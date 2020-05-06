@@ -328,7 +328,9 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
   $cmf = variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms');
   $model_filters = $sandbox['models'];
   foreach ($model_filters as $model) {
-    $qp->solrParams['fq'][] = $cmf . ':("' . $model . '" OR "info:fedora/' . $model . '"))';
+    if ($model !== 'fedora-system:FedoraObject-3.0') {
+      $qp->solrParams['fq'][] = $cmf . ':("' . $model . '" OR "info:fedora/' . $model . '")';
+    }
   }
   if (variable_get('islandora_namespace_restriction_enforced', FALSE)) {
     $namespace_map = function ($namespace) {

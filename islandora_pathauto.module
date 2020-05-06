@@ -352,7 +352,7 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
     drupal_set_message(t('No objects found for selected models (@models).', array('@models' => implode(', ', $sandbox['models']))));
     return t('No objects found.');
   }
-  $context['total'] = $numfound;
+  $sandbox['total'] = $numfound;
   $len = count($r['response']['objects']);
   if ($len === 0) {
     $context['finished'] = 1;

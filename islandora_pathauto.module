@@ -205,6 +205,14 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
   }
 }
 
+/**
+ * Batch operation for generating aliases for Islandora objects via Sparql.
+ *
+ * @param bool $use_cron_last
+ *   Flag for using cron last time.
+ * @param array $context
+ *   Batch context.
+ */
 function islandora_pathauto_bulk_batch_process_sparql($use_cron_last = FALSE, &$context = array()) {
   $sandbox = &$context['sandbox'];
   $args = array(

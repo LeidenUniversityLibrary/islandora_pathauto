@@ -198,7 +198,22 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
       $context['finished'] = 1;
       return;
     }
+  }
 
+  islandora_pathauto_bulk_batch_process_sparql($use_cron_last, $context);
+
+  $context['message'] = t('Processed @total_processed of @total. Added @total_alias aliases.', array(
+    '@total_processed' => $sandbox['total_processed'],
+    '@total_alias' => $sandbox['total_alias'],
+    '@total' => $sandbox['total']));
+  if ($context['finished'] == 1) {
+    drupal_set_message(t('Added @total_alias aliases on @total_processed PIDs.', array('@total_alias' => $sandbox['total_alias'], '@total_processed' => $sandbox['total_processed'])));
+  }
+}
+
+function islandora_pathauto_bulk_batch_process_sparql($use_cron_last = FALSE, &$context = array()) {
+  $sandbox = &$context['sandbox'];
+  if (empty($sandbox) || $sandbox['total_processed'] === 0) {
     $model_filters = $sandbox['models'];
     foreach ($model_filters as &$filter) {
       $filter = "sameTerm(?model, <info:fedora/$filter>)";
@@ -278,13 +293,6 @@ EOQ;
         }
       }
     }
-  }
-  $context['message'] = t('Processed @total_processed of @total. Added @total_alias aliases.', array(
-    '@total_processed' => $sandbox['total_processed'],
-    '@total_alias' => $sandbox['total_alias'],
-    '@total' => $sandbox['total']));
-  if ($context['finished'] == 1) {
-    drupal_set_message(t('Added @total_alias aliases on @total_processed PIDs.', array('@total_alias' => $sandbox['total_alias'], '@total_processed' => $sandbox['total_processed'])));
   }
 }
 

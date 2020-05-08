@@ -347,7 +347,7 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
   }
 
   if ($use_cron_last) {
-    $cronlastdate = gmdate("Y-m-d\TH:i:s.000\Z", variable_get('cron_last'));
+    $cronlastdate = gmdate("Y-m-d\TH:i:s\Z", variable_get('cron_last'));
     $qp->solrParams['fq'][] = "$lastmodfield:[$cronlastdate TO *]";
   }
 

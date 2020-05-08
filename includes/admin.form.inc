@@ -79,7 +79,7 @@ function islandora_pathauto_admin_settings(array $form, array &$form_state) {
     '#states' => array(
       'visible' => array('input[name=objects_query_method]' => array('value' => 'solr')),
     ),
-    '#default_value' => variable_get('islandora_pathauto_query_solr', '*:*'),
+    '#default_value' => variable_get('islandora_pathauto_objects_query_solr', '*:*'),
   );
 
   $form['use_cron'] = array(

@@ -326,7 +326,7 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
   $solrquery = variable_get('islandora_pathauto_objects_query_solr', '*:*');
   $qp = new IslandoraSolrQueryProcessor();
   $qp->buildQuery($solrquery);
-  $qp->solrLimit = 50;
+  $qp->solrLimit = 100;
   $qp->solrStart = $sandbox['total_processed'];
   $qp->solrParams['fq'] = array();
   $qp->solrParams['sort'] = "$lastmodfield ASC";

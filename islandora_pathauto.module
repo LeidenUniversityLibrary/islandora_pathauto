@@ -334,7 +334,7 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
   }
   if (variable_get('islandora_namespace_restriction_enforced', FALSE)) {
     $namespace_map = function ($namespace) {
-      return 'PID:' . Apache_Solr_Service::escape("$namespace:") . '*';
+      return 'PID:' . islandora_solr_lesser_escape("$namespace:") . '*';
     };
     $qp->solrParams['fq'][] = implode(' OR ', array_map($namespace_map, islandora_get_allowed_namespaces()));
   }

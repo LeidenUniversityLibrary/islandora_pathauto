@@ -63,18 +63,21 @@ function islandora_pathauto_admin_settings(array $form, array &$form_state) {
   if (module_exists('islandora_solr')) {
     $options['solr'] = t('Solr');
   }
-  $form['objects_query_method'] = array(
-    '#type' => 'radios',
+  $form['objects_query'] = array(
+    '#type' => 'fieldset',
     '#title' => t('Objects Query Method'),
+  );
+  $form['objects_query']['objects_query_method'] = array(
+    '#type' => 'radios',
     '#options' => $options,
     '#default_value' => variable_get('islandora_pathauto_objects_query_method', 'sparql'),
   );
-  $form['objects_query_solr'] = array(
-    '#type' => 'fieldset',
+  $form['objects_query']['objects_query_solr'] = array(
+    '#type' => 'textfield',
     '#title' => t('Solr query'),
-    '#description' => t('The Solr query to use to find all objects. In most cases *:* is good, but for multisites you may want to filter by a special ancestors_ms field.'),
+    '#description' => t('The Solr query to use to find all objects. In most cases *:* is good, but for multisites you may want to filter by ancestors_ms:"root_collection_id".'),
     '#states' => array(
-      'visible' => array('input[name=objects_query]' => array('value' => 'solr')),
+      'visible' => array('input[name=objects_query_method]' => array('value' => 'solr')),
     ),
     '#default_value' => variable_get('islandora_pathauto_query_solr', '*:*'),
   );

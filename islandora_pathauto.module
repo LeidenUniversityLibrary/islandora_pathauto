@@ -194,7 +194,12 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
     }
   }
 
-  islandora_pathauto_bulk_batch_process_solr($use_cron_last, $context);
+  if (variable_get('islandora_pathauto_objects_query_method', 'sparql') === 'solr') {
+    islandora_pathauto_bulk_batch_process_solr($use_cron_last, $context);
+  }
+  else {
+    islandora_pathauto_bulk_batch_process_sparql($use_cron_last, $context);
+  }
 
   $context['message'] = t('Processed @total_processed of @total. Added @total_alias aliases.', array(
     '@total_processed' => $sandbox['total_processed'],
@@ -313,10 +318,12 @@ EOQ;
  *   Batch context.
  */
 function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$context = array()) {
+  module_load_include('inc', 'islandora_solr', 'includes/utilities');
+
   $sandbox = &$context['sandbox'];
 
   $lastmodfield = "fgs_lastModifiedDate_dt";
-  $solrquery = "*:*";
+  $solrquery = variable_get('islandora_pathauto_objects_query_solr', '*:*');
   $qp = new IslandoraSolrQueryProcessor();
   $qp->buildQuery($solrquery);
   $qp->solrLimit = 50;

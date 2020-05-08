@@ -59,6 +59,26 @@ function islandora_pathauto_admin_settings(array $form, array &$form_state) {
     '#default_value' => $already_chosen,
   );
 
+  $options = array('sparql' => t('Sparql'));
+  if (module_exists('islandora_solr')) {
+    $options['solr'] = t('Solr');
+  }
+  $form['objects_query_method'] = array(
+    '#type' => 'radios',
+    '#title' => t('Objects Query Method'),
+    '#options' => $options,
+    '#default_value' => variable_get('islandora_pathauto_objects_query_method', 'sparql'),
+  );
+  $form['objects_query_solr'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Solr query'),
+    '#description' => t('The Solr query to use to find all objects. In most cases *:* is good, but for multisites you may want to filter by a special ancestors_ms field.'),
+    '#states' => array(
+      'visible' => array('input[name=objects_query]' => array('value' => 'solr')),
+    ),
+    '#default_value' => variable_get('islandora_pathauto_query_solr', '*:*'),
+  );
+
   $form['use_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use cron to automatically add / update aliases.'),
@@ -84,6 +104,8 @@ function islandora_pathauto_admin_settings_submit($form, &$form_state) {
   $enabled = array_filter($form_state['values']['pathauto_table']['enabled']);
   variable_set('islandora_pathauto_selected_cmodels', array_keys($enabled));
   variable_set('islandora_pathauto_use_cron', $form_state['values']['use_cron']);
+  variable_set('islandora_pathauto_objects_query_method', $form_state['values']['objects_query_method']);
+  variable_set('islandora_pathauto_objects_query_solr', $form_state['values']['objects_query_solr']);
 }
 
 /**

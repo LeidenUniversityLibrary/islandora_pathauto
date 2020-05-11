@@ -322,12 +322,24 @@ EOQ;
       foreach ($results as $result) {
         $pid = $result['object']['value'];
         $sandbox['cd'] = $result['cd']['value'];
+        if (!isset($sandbox['firstcd'])) {
+          $sandbox['firstcd'] = $sandbox['cd'];
+        }
         $sandbox['pid'] = $pid;
-        $object = islandora_object_load($pid);
-        if ($object) {
-          $alias = islandora_pathauto_create_alias($object, 'bulkupdate');
-          if ($alias != "") {
+        if (isset($context['dryrun']) && $context['dryrun']) {
+          $path = "islandora/object/$pid";
+          $alias = drupal_lookup_path('alias', $path);
+          if ($alias !== FALSE && $alias !== $path) {
             $sandbox['total_alias']++;
+          }
+        }
+        else {
+          $object = islandora_object_load($pid);
+          if ($object) {
+            $alias = islandora_pathauto_create_alias($object, 'bulkupdate');
+            if ($alias != "") {
+              $sandbox['total_alias']++;
+            }
           }
         }
       }
@@ -357,7 +369,7 @@ function islandora_pathauto_bulk_batch_process_from_date_solr($fromdate = NULL, 
   $qp->solrStart = $sandbox['total_processed'];
   $qp->solrParams['fq'] = array();
   $qp->solrParams['sort'] = "$lastmodfield ASC";
-  $qp->solrParams['fl'] = 'PID';
+  $qp->solrParams['fl'] = "PID $lastmodfield";
 
   $cmf = variable_get('islandora_solr_content_model_field', 'RELS_EXT_hasModel_uri_ms');
   $model_filters = $sandbox['models'];
@@ -397,12 +409,25 @@ function islandora_pathauto_bulk_batch_process_from_date_solr($fromdate = NULL, 
   for ($i = 0; $i < $len; $i++) {
     $solrobj = $r['response']['objects'][$i];
     $pid = $solrobj['PID'];
+    $sandbox['cd'] = $solrobj['solr_doc'][$lastmodfield];
+    if (!isset($sandbox['firstcd'])) {
+      $sandbox['firstcd'] = $sandbox['cd'];
+    }
     $sandbox['pid'] = $pid;
-    $object = islandora_object_load($pid);
-    if ($object) {
-      $alias = islandora_pathauto_create_alias($object, 'bulkupdate');
-      if ($alias != "") {
+    if (isset($context['dryrun']) && $context['dryrun']) {
+      $path = "islandora/object/$pid";
+      $alias = drupal_lookup_path('alias', $path);
+      if ($alias !== FALSE && $alias !== $path) {
         $sandbox['total_alias']++;
+      }
+    }
+    else {
+      $object = islandora_object_load($pid);
+      if ($object) {
+        $alias = islandora_pathauto_create_alias($object, 'bulkupdate');
+        if ($alias != "") {
+          $sandbox['total_alias']++;
+        }
       }
     }
   }

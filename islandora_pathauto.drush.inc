@@ -48,7 +48,7 @@ function drush_islandora_pathauto_islandora_aliases_complete() {
   batch_set(array(
     'title' => t('Islandora Pathauto cron bulk updating URL aliases'),
     'operations' => array(
-      array('islandora_pathauto_bulk_batch_process_via_drush', array($fromdate)),
+      array('islandora_pathauto_bulk_batch_process_via_drush', array($fromdate, $isdryrun)),
     ),
   ));
 
@@ -67,11 +67,28 @@ function drush_islandora_pathauto_islandora_aliases_complete() {
  * @param array $context
  *   Batch context.
  */
-function islandora_pathauto_bulk_batch_process_via_drush($fromdate, &$context = array()) {
+function islandora_pathauto_bulk_batch_process_via_drush($fromdate = NULL, $isdryrun = FALSE, &$context = array()) {
+  if ($isdryrun) {
+    $context['dryrun'] = TRUE;
+  }
   islandora_pathauto_bulk_batch_process_from_date($fromdate, $context);
 
   $sandbox = $context['sandbox'];
   if (isset($sandbox['warning'])) {
     drush_log($sandbox['warning'], 'warning');
+  }
+  $checked = $sandbox['total_processed'];
+  $added = $sandbox['total_alias'];
+  $firstcreationdate = $sandbox['firstcd'];
+  $lastcreationdate = $sandbox['cd'];
+  drush_log(t("Checked !checked objects between @first and @last, !verb !added aliases.", array(
+    '!checked' => $checked,
+    '!added' => $added,
+    '!verb' => $isdryrun?"missing":"added",
+    '@first' => $firstcreationdate,
+    '@last' => $lastcreationdate,
+  )), "success");
+  if (!$isdryrun) {
+    variable_set('islandora_pathauto_aliases_complete_last_date', $lastcreationdate);
   }
 }

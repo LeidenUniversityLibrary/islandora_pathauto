@@ -162,6 +162,30 @@ function islandora_pathauto_islandora_object_purged($pid) {
  *   Batch context.
  */
 function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context = array()) {
+  $fromdate = NULL;
+  if ($use_cron_last) {
+    $fromdate = gmdate("Y-m-d\TH:i:s\Z", variable_get('cron_last'));
+  }
+  islandora_pathauto_bulk_batch_process_from_date($fromdate, &$context = array());
+
+  $sandbox = $context['sandbox'];
+  if (isset($sandbox['warning'])) {
+    drupal_set_message($sandbox['warning'], 'warning');
+  }
+  if ($context['finished'] == 1) {
+    drupal_set_message(t('Added @total_alias aliases on @total_processed PIDs.', array('@total_alias' => $sandbox['total_alias'], '@total_processed' => $sandbox['total_processed'])));
+  }
+}
+
+/**
+ * Batch operation for generating aliases for Islandora objects.
+ *
+ * @param string $fromdate
+ *   Process only objects that have a modification date greater than this date.
+ * @param array $context
+ *   Batch context.
+ */
+function islandora_pathauto_bulk_batch_process_from_date($fromdate = NULL, &$context = array()) {
   module_load_include('inc', 'islandora', 'includes/utilities');
   $sandbox = &$context['sandbox'];
   if (empty($sandbox)) {
@@ -188,37 +212,36 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
     }
 
     if (empty($sandbox['models'])) {
-      drupal_set_message(t('No patterns exist for Islandora objects.'), 'warning');
+      $sandbox['warning'] = t('No patterns exist for Islandora objects.');
       $context['finished'] = 1;
       return;
     }
   }
 
   if (variable_get('islandora_pathauto_objects_query_method', 'sparql') === 'solr') {
-    islandora_pathauto_bulk_batch_process_solr($use_cron_last, $context);
+    islandora_pathauto_bulk_batch_process_from_date_solr($fromdate, $context);
   }
   else {
-    islandora_pathauto_bulk_batch_process_sparql($use_cron_last, $context);
+    islandora_pathauto_bulk_batch_process_from_date_sparql($fromdate, $context);
   }
 
   $context['message'] = t('Processed @total_processed of @total. Added @total_alias aliases.', array(
     '@total_processed' => $sandbox['total_processed'],
     '@total_alias' => $sandbox['total_alias'],
     '@total' => $sandbox['total']));
-  if ($context['finished'] == 1) {
-    drupal_set_message(t('Added @total_alias aliases on @total_processed PIDs.', array('@total_alias' => $sandbox['total_alias'], '@total_processed' => $sandbox['total_processed'])));
-  }
 }
 
 /**
  * Batch operation for generating aliases for Islandora objects via Sparql.
  *
- * @param bool $use_cron_last
- *   Flag for using cron last time.
+ * @param string $fromdate
+ *   Process only objects that have a modification date greater than this date,
+ *   formatted as YYYY-MM-DD'T'hh:mm:ss'Z', e.g. 2020-05-14T23:59:59Z.
  * @param array $context
  *   Batch context.
  */
-function islandora_pathauto_bulk_batch_process_sparql($use_cron_last = FALSE, &$context = array()) {
+function islandora_pathauto_bulk_batch_process_from_date_sparql($fromdate = NULL, &$context = array()) {
+  $batchsize = 50;
   $sandbox = &$context['sandbox'];
   $args = array(
     '!filters' => '',
@@ -239,12 +262,11 @@ function islandora_pathauto_bulk_batch_process_sparql($use_cron_last = FALSE, &$
     }
   }
 
-  if ($use_cron_last) {
+  if ($fromdate !== NULL) {
     $args['!md_name'] = '?md';
     $args['!md_field'] = '<info:fedora/fedora-system:def/view#lastModifiedDate> ?md ;';
     if (!isset($sandbox['filters']['cron_last'])) {
-      $modified_date_time = gmdate("Y-m-d\TH:i:s\Z", variable_get('cron_last'));
-      $sandbox['filters']['cron_last'] = "FILTER(?md > '{$modified_date_time}'^^xsd:dateTime)";
+      $sandbox['filters']['cron_last'] = "FILTER(?md > '{$fromdate}'^^xsd:dateTime)";
     }
   }
 
@@ -263,6 +285,10 @@ ORDER BY ?cd
 !limit
 EOQ;
 
+  if ($sandbox['total_processed'] % ($batchsize * 50) === 0) {
+    // Reset tuque connection to solve memory problem.
+    drupal_static_reset('islandora_get_tuque_connection');
+  }
   $tuque = islandora_get_tuque_connection();
   if ($tuque) {
     $context['finished'] = 0;
@@ -284,7 +310,7 @@ EOQ;
     }
 
     $args['!filters'] = implode(' ', $sandbox['filters']);
-    $args['!limit'] = "LIMIT 50";
+    $args['!limit'] = "LIMIT $batchsize";
     $query_string = format_string($query, $args);
 
     $results = $tuque->repository->ri->sparqlQuery($query_string);
@@ -312,12 +338,13 @@ EOQ;
 /**
  * Batch operation for generating aliases for Islandora objects via Solr.
  *
- * @param bool $use_cron_last
- *   Flag for using cron last time.
+ * @param string $fromdate
+ *   Process only objects that have a modification date greater than this date,
+ *   formatted as YYYY-MM-DD'T'hh:mm:ss'Z', e.g. 2020-05-14T23:59:59Z.
  * @param array $context
  *   Batch context.
  */
-function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$context = array()) {
+function islandora_pathauto_bulk_batch_process_from_date_solr($fromdate = NULL, &$context = array()) {
   module_load_include('inc', 'islandora_solr', 'includes/utilities');
 
   $sandbox = &$context['sandbox'];
@@ -346,9 +373,8 @@ function islandora_pathauto_bulk_batch_process_solr($use_cron_last = FALSE, &$co
     $qp->solrParams['fq'][] = implode(' OR ', array_map($namespace_map, islandora_get_allowed_namespaces()));
   }
 
-  if ($use_cron_last) {
-    $cronlastdate = gmdate("Y-m-d\TH:i:s\Z", variable_get('cron_last'));
-    $qp->solrParams['fq'][] = "$lastmodfield:[$cronlastdate TO *]";
+  if ($fromdate !== NULL) {
+    $qp->solrParams['fq'][] = "$lastmodfield:[$fromdate TO *]";
   }
 
   $qp->executeQuery(FALSE);

@@ -74,7 +74,4 @@ function islandora_pathauto_bulk_batch_process_via_drush($fromdate, &$context = 
   if (isset($sandbox['warning'])) {
     drush_log($sandbox['warning'], 'warning');
   }
-  if ($context['finished'] == 1) {
-    drush_log(t('Added @total_alias aliases on @total_processed PIDs.', array('@total_alias' => $sandbox['total_alias'], '@total_processed' => $sandbox['total_processed'])), 'ok');
-  }
 }

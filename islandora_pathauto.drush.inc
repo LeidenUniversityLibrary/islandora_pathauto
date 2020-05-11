@@ -42,7 +42,10 @@ function drush_islandora_pathauto_islandora_aliases_complete() {
   $isdryrun = drush_get_option('dryrun');
   $fromdate = drush_get_option('fromdate');
   if ($fromdate === 'last') {
-    $fromdate = variable_get('islandora_pathauto_aliases_complete_drush', '1900-01-01');
+    $fromdate = variable_get('islandora_pathauto_aliases_complete_last_date', '1900-01-01');
+  }
+  if (preg_match('/^[12][0-9]{3}-[01][0-9]-[0-3][0-9]$/', $fromdate) === 1) {
+    $fromdate = $fromdate . 'T00:00:00.000Z';
   }
 
   batch_set(array(
@@ -73,22 +76,24 @@ function islandora_pathauto_bulk_batch_process_via_drush($fromdate = NULL, $isdr
   }
   islandora_pathauto_bulk_batch_process_from_date($fromdate, $context);
 
-  $sandbox = $context['sandbox'];
-  if (isset($sandbox['warning'])) {
-    drush_log($sandbox['warning'], 'warning');
-  }
-  $checked = $sandbox['total_processed'];
-  $added = $sandbox['total_alias'];
-  $firstcreationdate = $sandbox['firstcd'];
-  $lastcreationdate = $sandbox['cd'];
-  drush_log(t("Checked !checked objects between @first and @last, !verb !added aliases.", array(
-    '!checked' => $checked,
-    '!added' => $added,
-    '!verb' => $isdryrun?"missing":"added",
-    '@first' => $firstcreationdate,
-    '@last' => $lastcreationdate,
-  )), "success");
-  if (!$isdryrun) {
-    variable_set('islandora_pathauto_aliases_complete_last_date', $lastcreationdate);
+  if ($context['finished'] === 1) {
+    $sandbox = $context['sandbox'];
+    if (isset($sandbox['warning'])) {
+      drush_log($sandbox['warning'], 'warning');
+    }
+    $checked = $sandbox['total_processed'];
+    $added = $sandbox['total_alias'];
+    $firstcreationdate = $sandbox['firstcd'];
+    $lastcreationdate = $sandbox['cd'];
+    drush_log(t("Checked !checked objects between @first and @last, !verb !added aliases.", array(
+      '!checked' => $checked,
+      '!added' => $added,
+      '!verb' => $isdryrun?"missing":"added",
+      '@first' => $firstcreationdate,
+      '@last' => $lastcreationdate,
+    )), "success");
+    if (!$isdryrun) {
+      variable_set('islandora_pathauto_aliases_complete_last_date', $lastcreationdate);
+    }
   }
 }

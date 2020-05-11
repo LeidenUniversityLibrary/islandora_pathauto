@@ -329,7 +329,7 @@ EOQ;
         if (isset($context['dryrun']) && $context['dryrun']) {
           $path = "islandora/object/$pid";
           $alias = drupal_lookup_path('alias', $path);
-          if ($alias !== FALSE && $alias !== $path) {
+          if ($alias === FALSE || $alias === $path) {
             $sandbox['total_alias']++;
           }
         }
@@ -417,7 +417,7 @@ function islandora_pathauto_bulk_batch_process_from_date_solr($fromdate = NULL, 
     if (isset($context['dryrun']) && $context['dryrun']) {
       $path = "islandora/object/$pid";
       $alias = drupal_lookup_path('alias', $path);
-      if ($alias !== FALSE && $alias !== $path) {
+      if ($alias === FALSE || $alias === $path) {
         $sandbox['total_alias']++;
       }
     }

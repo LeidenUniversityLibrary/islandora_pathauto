@@ -166,7 +166,7 @@ function islandora_pathauto_bulk_batch_process($use_cron_last = FALSE, &$context
   if ($use_cron_last) {
     $fromdate = gmdate("Y-m-d\TH:i:s\Z", variable_get('cron_last'));
   }
-  islandora_pathauto_bulk_batch_process_from_date($fromdate, &$context = array());
+  islandora_pathauto_bulk_batch_process_from_date($fromdate, $context);
 
   $sandbox = $context['sandbox'];
   if (isset($sandbox['warning'])) {

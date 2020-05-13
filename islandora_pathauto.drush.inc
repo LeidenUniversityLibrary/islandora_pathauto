@@ -44,114 +44,47 @@ function drush_islandora_pathauto_islandora_aliases_complete() {
   if ($fromdate === 'last') {
     $fromdate = variable_get('islandora_pathauto_aliases_complete_last_date', '1900-01-01');
   }
-  $settings = islandora_pathauto_pathauto('settings');
-  $pattern_all_objects = variable_get('pathauto_' . $settings->module . '_pattern', $settings->patterndefault);
-  // Determine what content models have a pattern and
-  // only query objects with those particular models.
-  if (isset($settings->patternitems)) {
-    foreach ($settings->patternitems as $model => $label) {
-      $pattern = variable_get('pathauto_' . $settings->module . '_' . $model . '_pattern', '');
-      if (!empty($pattern)) {
-        $models[] = $model;
-      }
-    }
-  }
-  if (empty($models)) {
-    $models[] = 'fedora-system:FedoraObject-3.0';
+  if (preg_match('/^[12][0-9]{3}-[01][0-9]-[0-3][0-9]$/', $fromdate) === 1) {
+    $fromdate = $fromdate . 'T00:00:00.000Z';
   }
 
-  foreach ($models as &$filter) {
-    $filter = "sameTerm(?model, <info:fedora/$filter>)";
-  }
-  $filters['model'] = format_string('FILTER(!models)', array('!models' => implode(' || ', $models)));
-  if (variable_get('islandora_namespace_restriction_enforced', FALSE)) {
-    $namespace_array = islandora_get_allowed_namespaces();
-    $namespace_sparql = implode('|', $namespace_array);
-    $filters['ns'] = format_string('FILTER(regex(str(?object), "info:fedora/(!namespaces):"))', array('!namespaces' => $namespace_sparql));
-  }
+  batch_set(array(
+    'title' => t('Islandora Pathauto cron bulk updating URL aliases'),
+    'operations' => array(
+      array('islandora_pathauto_bulk_batch_process_via_drush', array($fromdate, $isdryrun)),
+    ),
+  ));
 
-  $query = <<<EOQ
-SELECT ?object ?cd ?title
-FROM <#ri>
-WHERE {
-  ?object <fedora-model:label> ?title ;
-  <info:fedora/fedora-system:def/model#createdDate> ?cd ;
-  <fedora-model:hasModel> ?model ;
-  <fedora-model:state> <fedora-model:Active> .
-  !filters
+  // This is a hack around the broken batch API.
+  // https://drupal.org/node/638712#comment-2289138
+  $batch =& batch_get();
+  $batch['progressive'] = FALSE;
+  drush_backend_batch_process();
 }
-ORDER BY ?cd
-!limit
-EOQ;
 
-  drupal_static_reset('islandora_get_tuque_connection');
-  $tuque = islandora_get_tuque_connection();
-  if ($tuque) {
-    $firstcreationdate;
-    $lastcreationdate;
-    if (isset($fromdate)) {
-      $lastcreationdate = $fromdate;
+/**
+ * Batch operation for generating aliases for Islandora objects via drush.
+ *
+ * @param bool $use_cron_last
+ *   Flag for using cron last time.
+ * @param array $context
+ *   Batch context.
+ */
+function islandora_pathauto_bulk_batch_process_via_drush($fromdate = NULL, $isdryrun = FALSE, &$context = array()) {
+  if ($isdryrun) {
+    $context['dryrun'] = TRUE;
+  }
+  islandora_pathauto_bulk_batch_process_from_date($fromdate, $context);
+
+  if ($context['finished'] === 1) {
+    $sandbox = $context['sandbox'];
+    if (isset($sandbox['warning'])) {
+      drush_log($sandbox['warning'], 'warning');
     }
-    $limit = 2500;
-    $checked = 0;
-    $added = 0;
-    $cycles = 0;
-
-    while (TRUE) {
-      $cycles++;
-      if (isset($lastcreationdate)) {
-        $filters['cd'] = "FILTER(?cd > '{$lastcreationdate}'^^xsd:dateTime)";
-      }
-      else {
-        $filters['cd'] = '';
-      }
-
-      $query_string = format_string($query, array(
-        '!filters' => implode(' ', $filters),
-        '!limit' => "LIMIT $limit"));
-      $results = $tuque->repository->ri->sparqlQuery($query_string);
-      if (empty($results)) {
-        break;
-      }
-      else {
-        foreach ($results as $result) {
-          $pid = $result['object']['value'];
-          if (!isset($firstcreationdate)) {
-            $firstcreationdate = $result['cd']['value'];
-          }
-          $lastcreationdate = $result['cd']['value'];
-
-          $source = "islandora/object/$pid";
-   
-          $checked++;
-
-          $result = db_query('SELECT a.source FROM url_alias a WHERE a.source LIKE :source',
-            array(':source' => $source));
-          $c = $result->rowCount();
-
-          if ($c == 0) {
-            if ($isdryrun) {
-              $added++;
-              drush_log("Should add alias for $source", "notice"); 
-            }
-            else {
-              //db_insert('url_alias')->fields(array('alias' => $alias, 'source' => $source, 'language' => 'und'))->execute();
-              $object = islandora_object_load($pid);
-              if ($object) {
-                $alias = islandora_pathauto_create_alias($object, 'bulkupdate');
-                if ($alias != "") {
-                  $added++;
-                }
-              }
-            }
-          }
-        }
-      }
-      if (($cycles % 50) === 0) {
-        drupal_static_reset('islandora_get_tuque_connection');
-        $tuque = islandora_get_tuque_connection();
-      }
-    }
+    $checked = $sandbox['total_processed'];
+    $added = $sandbox['total_alias'];
+    $firstcreationdate = $sandbox['firstcd'];
+    $lastcreationdate = $sandbox['cd'];
     drush_log(t("Checked !checked objects between @first and @last, !verb !added aliases.", array(
       '!checked' => $checked,
       '!added' => $added,
@@ -164,4 +97,3 @@ EOQ;
     }
   }
 }
-

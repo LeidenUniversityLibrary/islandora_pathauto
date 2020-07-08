@@ -102,6 +102,7 @@ function islandora_pathauto_pathauto($op) {
  *   may be >1 if the object has multiple content models.
  */
 function islandora_pathauto_create_alias($object, $op) {
+  module_load_include('inc', 'islandora', 'includes/utilities');
   module_load_include('inc', 'pathauto');
   $count = 0;
   if (islandora_namespace_accessible($object->id)) {
@@ -639,9 +640,8 @@ function islandora_pathauto_trigger_creation_on_server($object, $url = NULL, $se
 function islandora_pathauto_triggered_create_alias($objectid) {
   $input = file_get_contents("php://input");
   parse_str($input, $vars);
-
   $istest = ($objectid === 'testing');
-  $issuccess = $istest;
+  $issuccess = TRUE;
   $error = NULL;
   $message = NULL;
   $status = 200;
@@ -669,16 +669,16 @@ function islandora_pathauto_triggered_create_alias($objectid) {
     $error = 'Forbidden';
     $status = 403;
   }
-  elseif ($issuccess && !$istest) {
+  if ($issuccess && !$istest) {
     $object = islandora_object_load($objectid);
     if ($object) {
-      $result = islandora_pathauto_create_alias($object, 'update');
-      if ($result === NULL) {
+      $result = islandora_pathauto_create_alias($object, 'insert');
+      if ($result == 0) {
         $issuccess = FALSE;
         $error = t('Could not create alias for object !id.', array('!id' => $objectid));
         $status = 400;
       }
-      elseif (strlen($result) > 0) {
+      elseif ($result > 0) {
         $message = t('Created new alias %alias for object %id.', array('%id' => $objectid, '%alias' => $result));
       }
     }
@@ -696,7 +696,6 @@ function islandora_pathauto_triggered_create_alias($objectid) {
   elseif (isset($message)) {
     $data['message'] = $message;
   }
-
   drupal_add_http_header('Status', $status);
   drupal_add_http_header('Content-Type', 'application/json; utf-8');
   if ($data !== NULL) {

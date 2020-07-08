@@ -664,7 +664,7 @@ function islandora_pathauto_triggered_create_alias($objectid) {
     $status = 401;
   }
 
-  if (variable_get('islandora_pathauto_trigger_type', '') === 'receiving') {
+  if ($issuccess && variable_get('islandora_pathauto_trigger_type', '') !== 'receiving') {
     $issuccess = FALSE;
     $error = 'Forbidden';
     $status = 403;

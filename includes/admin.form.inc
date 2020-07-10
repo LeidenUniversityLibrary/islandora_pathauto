@@ -156,7 +156,7 @@ function islandora_pathauto_admin_settings_validate($form, &$form_state) {
       form_set_error('trigger_url', t("Fill out the URL of the receiving server."));
     }
     else {
-      $response = islandora_pathauto_trigger_creation_on_server(NULL, $form_state['values']['trigger_url'], $form_state['values']['trigger_secret']);
+      $response = islandora_pathauto_trigger_creation_on_server(NULL, 'insert', $form_state['values']['trigger_url'], $form_state['values']['trigger_secret']);
       if ($response === NULL) {
         form_set_error('trigger_url', t("The URL provided is not a valid receiving server. Make sure the URL contains only protocol and domain."));
       }

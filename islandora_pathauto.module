@@ -665,7 +665,7 @@ function islandora_pathauto_triggered_create_alias($objectid, $op) {
   }
   else {
     $issuccess = FALSE;
-    $error = 'Authenctication required';
+    $error = 'Authentication required';
     $status = 401;
   }
 

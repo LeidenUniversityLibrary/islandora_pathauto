@@ -669,7 +669,7 @@ function islandora_pathauto_triggered_create_alias($objectid, $op) {
     $status = 401;
   }
 
-  if ($success && ($op !== 'insert' && $op !== 'update')) {
+  if ($issuccess && ($op !== 'insert' && $op !== 'update')) {
     $issuccess = FALSE;
     $error = 'Forbidden';
     $status = 403;

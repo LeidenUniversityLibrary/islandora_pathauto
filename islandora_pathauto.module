@@ -121,7 +121,7 @@ function islandora_pathauto_create_alias($object, $op) {
       }
     }
   }
-  if (variable_get('islandora_pathauto_trigger_type', '') === 'sending') {
+  if (variable_get('islandora_pathauto_trigger_type', '') === 'sending' && in_array($op, array('insert', 'update'), TRUE)) {
     $response = islandora_pathauto_trigger_creation_on_server($object, $op);
     if ($response === NULL || isset($response['error'])) {
       watchdog('islandora_pathauto', 'Unable to trigger creation of alias on remote server: @error', array(

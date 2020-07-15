@@ -23,6 +23,12 @@ function islandora_pathauto_menu() {
     'file' => 'includes/admin.form.inc',
     'type' => MENU_NORMAL_ITEM,
   );
+  $items['admin/islandora/tools/islandora-pathauto/trigger/%/%'] = array(
+    'page callback' => 'islandora_pathauto_triggered_create_alias',
+    'page arguments' => array(5, 6),
+    'access callback' => TRUE,
+    'type' => MENU_CALLBACK,
+  );
   return $items;
 }
 
@@ -96,6 +102,7 @@ function islandora_pathauto_pathauto($op) {
  *   may be >1 if the object has multiple content models.
  */
 function islandora_pathauto_create_alias($object, $op) {
+  module_load_include('inc', 'islandora', 'includes/utilities');
   module_load_include('inc', 'pathauto');
   $count = 0;
   if (islandora_namespace_accessible($object->id)) {
@@ -112,6 +119,14 @@ function islandora_pathauto_create_alias($object, $op) {
       if ($result != '') {
         $count++;
       }
+    }
+  }
+  if (variable_get('islandora_pathauto_trigger_type', '') === 'sending' && in_array($op, array('insert', 'update'), TRUE)) {
+    $response = islandora_pathauto_trigger_creation_on_server($object, $op);
+    if ($response === NULL || isset($response['error'])) {
+      watchdog('islandora_pathauto', 'Unable to trigger creation of alias on remote server: @error', array(
+         '@error' => isset($response['error']) ? $response['error'] : 'Cannot read response',
+       ), WATCHDOG_ERROR);
     }
   }
 
@@ -592,4 +607,114 @@ function islandora_pathauto_cron() {
  */
 function islandora_pathauto_pathauto_bulkupdate(&$context) {
   return islandora_pathauto_bulk_batch_process(FALSE, $context);
+}
+
+/**
+ * Fire a trigger to create aliases on other servers.
+ */
+function islandora_pathauto_trigger_creation_on_server($object, $op, $url = NULL, $secret = NULL) {
+  if ($url === NULL) {
+    $url = variable_get('islandora_pathauto_trigger_url', NULL);
+  }
+  if ($secret === NULL) {
+    $secret = variable_get('islandora_pathauto_trigger_secret', NULL);
+  }
+  if (isset($url, $secret)) {
+    $identifier = isset($object) ? $object->id : 'testing';
+    $time = time();
+    $url = rtrim($url, '/') . '/admin/islandora/tools/islandora-pathauto/trigger/' . $identifier . '/' . $op;
+    $hash = drupal_hash_base64("$secret $identifier $op $time");
+    $options = array(
+      'method' => 'POST',
+      'data' => array('hash' => $hash, 'time' => $time),
+    );
+    $result = drupal_http_request($url, $options);
+
+    if (isset($result->data, $result->code) && json_decode($result->data) !== NULL) {
+      return json_decode($result->data, TRUE);
+    }
+    else {
+      return array('success' => FALSE, 'error' => 'Cannot decode data'); 
+    }
+  }
+}
+
+/**
+ * Handle a received trigger from an other server.
+ */
+function islandora_pathauto_triggered_create_alias($objectid, $op) {
+  $input = file_get_contents("php://input");
+  parse_str($input, $vars);
+  $istest = ($objectid === 'testing');
+  $issuccess = TRUE;
+  $error = NULL;
+  $message = NULL;
+  $status = 200;
+
+  if (isset($vars['hash'], $vars['time'])) {
+    $receivedhash = $vars['hash'];
+    $receivedtime = $vars['time'];
+    $secret = variable_get('islandora_pathauto_trigger_secret', NULL);
+
+    $hash = drupal_hash_base64("$secret $objectid $op $receivedtime");
+    if ($hash !== $receivedhash) {
+      $issuccess = FALSE;
+      $error = 'Authentication failed'; 
+      $status = 401;
+    }
+  }
+  else {
+    $issuccess = FALSE;
+    $error = 'Authentication required';
+    $status = 401;
+  }
+
+  if ($issuccess && ($op !== 'insert' && $op !== 'update')) {
+    $issuccess = FALSE;
+    $error = 'Forbidden';
+    $status = 403;
+  }
+  if ($issuccess && variable_get('islandora_pathauto_trigger_type', '') !== 'receiving') {
+    $issuccess = FALSE;
+    $error = 'Forbidden';
+    $status = 403;
+  }
+  if ($issuccess && !$istest) {
+    $object = islandora_object_load($objectid);
+    if ($object) {
+      $result = islandora_pathauto_create_alias($object, $op);
+      if ($result == 0) {
+        $issuccess = FALSE;
+        $error = t('Could not !op alias for object !id.', array('!op' => $op, '!id' => $objectid));
+        $status = 400;
+      }
+      elseif ($result > 0) {
+        if ($op === 'insert') {
+          $message = t('Created new alias %alias for object %id.', array('%id' => $objectid, '%alias' => $result));
+        }
+        else {
+          $message = t('Updated alias %alias for object %id.', array('%id' => $objectid, '%alias' => $result));
+        }
+      }
+    }
+    else {
+      $issuccess = FALSE;
+      $error = t('Object "!id" not found', array('!id' => $objectid));
+      $status = 404;
+    }
+  }
+  $data = array('success' => $issuccess, 'test' => $istest);
+  if (isset($error)) {
+    $data['error'] = $error;
+    $data['success'] = FALSE;
+  }
+  elseif (isset($message)) {
+    $data['message'] = $message;
+  }
+  drupal_add_http_header('Status', $status);
+  drupal_add_http_header('Content-Type', 'application/json; utf-8');
+  if ($data !== NULL) {
+    print drupal_json_encode($data);
+  }
+  exit();
 }

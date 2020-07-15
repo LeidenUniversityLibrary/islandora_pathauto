@@ -82,6 +82,44 @@ function islandora_pathauto_admin_settings(array $form, array &$form_state) {
     '#default_value' => variable_get('islandora_pathauto_objects_query_solr', '*:*'),
   );
 
+  $form['multi_server'] = array(
+    '#type' => 'fieldset',
+    '#title' => t('Multiple server configuration'),
+    '#description' => t('When using multiple servers, one might want to trigger the alias generation on a different server when an object is ingested.'),
+  );
+  $triggertype = variable_get('islandora_pathauto_trigger_type', NULL);
+  $triggerurl = variable_get('islandora_pathauto_trigger_url', NULL);
+  $triggersecret = variable_get('islandora_pathauto_trigger_secret', NULL);
+  $form['multi_server']['trigger_type'] = array(
+    '#type' => 'select',
+    '#title' => t('Trigger type'),
+    '#options' => array(
+       0 => t('Disabled'),
+       'receiving' => t('Trigger receiving server'),
+       'sending' => t('Trigger sending server'),
+    ),
+    '#default_value' => $triggertype,
+    '#description' => t("Only enable for multi server configurations. For example: set the ingest server to 'trigger sending server' and the front-end server to 'trigger receiving server'.\nThe 'trigger sending server' will use the 'trigger URL' to send a trigger when an alias is created. The 'trigger receiving server' receives this trigger and creates an alias for the same object.\nDo not set both servers to 'trigger sending server' because this will create an endless loop."),
+  );
+  $form['multi_server']['trigger_url'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Trigger URL'),
+    '#description' => t('The base URL of the server to send a trigger to.'),
+    '#states' => array(
+      'visible' => array(':input[name=trigger_type]' => array('value' => 'sending')),
+    ),
+    '#default_value' => $triggerurl,
+  );
+  $form['multi_server']['trigger_secret'] = array(
+    '#type' => 'textfield',
+    '#title' => t('Trigger secret'),
+    '#description' => t('A secret that is shared between the sending and receiving server. Use the same secret for both sending and receiving servers.'),
+    '#states' => array(
+      'visible' => array(':input[name=trigger_type]' => array(array('value' => 'sending'), array('value' => 'receiving'))),
+    ),
+    '#default_value' => $triggersecret,
+  );
+
   $form['use_cron'] = array(
     '#type' => 'checkbox',
     '#title' => t('Use cron to automatically add / update aliases.'),
@@ -101,6 +139,38 @@ function islandora_pathauto_admin_settings(array $form, array &$form_state) {
 }
 
 /**
+ * Validate handler for admin form.
+ */
+function islandora_pathauto_admin_settings_validate($form, &$form_state) {
+  $triggertype = $form_state['values']['trigger_type'];
+  if ($triggertype === 'receiving') {
+    if (empty($form_state['values']['trigger_secret'])) {
+      form_set_error('trigger_secret', t("Fill out a secret shared with the sending server."));
+    }
+  }
+  if ($triggertype === 'sending') {
+    if (empty($form_state['values']['trigger_secret'])) {
+      form_set_error('trigger_secret', t("Fill out a secret shared with the receiving server."));
+    }
+    if (empty($form_state['values']['trigger_url'])) {
+      form_set_error('trigger_url', t("Fill out the URL of the receiving server."));
+    }
+    else {
+      $response = islandora_pathauto_trigger_creation_on_server(NULL, 'insert', $form_state['values']['trigger_url'], $form_state['values']['trigger_secret']);
+      if ($response === NULL) {
+        form_set_error('trigger_url', t("The URL provided is not a valid receiving server. Make sure the URL contains only protocol and domain."));
+      }
+      elseif (isset($response['error'])) {
+        form_set_error('trigger_url', t("The URL provided gave the following error: %error", array('%error' =>  $response['error'])));
+      }
+      elseif (isset($response['success']) && !$response['success']) {
+        form_set_error('trigger_url', t("The URL provided is not valid and something unexpected happened"));
+      }
+    }
+  }
+}
+
+/**
  * Submit handler for admin form.
  */
 function islandora_pathauto_admin_settings_submit($form, &$form_state) {
@@ -109,6 +179,9 @@ function islandora_pathauto_admin_settings_submit($form, &$form_state) {
   variable_set('islandora_pathauto_use_cron', $form_state['values']['use_cron']);
   variable_set('islandora_pathauto_objects_query_method', $form_state['values']['objects_query_method']);
   variable_set('islandora_pathauto_objects_query_solr', $form_state['values']['objects_query_solr']);
+  variable_set('islandora_pathauto_trigger_type', $form_state['values']['trigger_type']);
+  variable_set('islandora_pathauto_trigger_url', $form_state['values']['trigger_url']);
+  variable_set('islandora_pathauto_trigger_secret', $form_state['values']['trigger_secret']);
 }
 
 /**

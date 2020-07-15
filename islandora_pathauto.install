@@ -16,6 +16,9 @@ function islandora_pathauto_uninstall() {
     'islandora_pathauto_selected_cmodels',
     'islandora_pathauto_objects_query_method',
     'islandora_pathauto_objects_query_solr',
+    'islandora_pathauto_trigger_type',
+    'islandora_pathauto_trigger_url',
+    'islandora_pathauto_trigger_secret',
   );
   array_walk($variables, 'variable_del');
 }

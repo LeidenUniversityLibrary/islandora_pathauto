@@ -684,9 +684,13 @@ function islandora_pathauto_triggered_create_alias($objectid, $op) {
     if ($object) {
       $result = islandora_pathauto_create_alias($object, $op);
       if ($result == 0) {
-        $issuccess = FALSE;
-        $error = t('Could not !op alias for object !id.', array('!op' => $op, '!id' => $objectid));
-        $status = 400;
+        $orig_path = "islandora/object/$objectid";
+        $alias = drupal_get_path_alias($orig_path);
+        if ($alias == $orig_path) {
+          $issuccess = FALSE;
+          $error = t('Could not !op alias for object !id.', array('!op' => $op, '!id' => $objectid));
+          $status = 400;
+        }
       }
       elseif ($result > 0) {
         if ($op === 'insert') {

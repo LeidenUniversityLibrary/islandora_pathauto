@@ -634,7 +634,7 @@ function islandora_pathauto_trigger_creation_on_server($object, $op, $url = NULL
       return json_decode($result->data, TRUE);
     }
     else {
-      return array('success' => FALSE, 'error' => 'Cannot decode data'); 
+      return array('success' => FALSE, 'error' => 'Cannot decode data');
     }
   }
 }
@@ -659,7 +659,7 @@ function islandora_pathauto_triggered_create_alias($objectid, $op) {
     $hash = drupal_hash_base64("$secret $objectid $op $receivedtime");
     if ($hash !== $receivedhash) {
       $issuccess = FALSE;
-      $error = 'Authentication failed'; 
+      $error = 'Authentication failed';
       $status = 401;
     }
   }
@@ -669,7 +669,7 @@ function islandora_pathauto_triggered_create_alias($objectid, $op) {
     $status = 401;
   }
 
-  if ($issuccess && ($op !== 'insert' && $op !== 'update')) {
+  if ($issuccess && ($op !== 'insert' && $op !== 'update' && $op !== 'bulkupdate')) {
     $issuccess = FALSE;
     $error = 'Forbidden';
     $status = 403;
